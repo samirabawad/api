@@ -5,19 +5,21 @@ services:
         ports:
             - 5099:5096
         environment:
-            - ASPNETCORE_ENVIRONMENT=$STAGING_ASPNETCORE_ENVIRONMENT
-            - ConnectionStrings__DbContext=$STAGING_ConnectionStrings__DbContext
-            - JwtSettings__Secret=$STAGING_JwtSettings__Secret
-            - JwtSettings__Issuer=$STAGING_JwtSettings__Issuer
-            - JwtSettings__Audience=$STAGING_JwtSettings__Audience
-            - ApiKeyCL=$STAGING_ApiKeyCL
-            - ExpiryMinutes=$STAGING_ExpiryMinutes
-            - BaseUrl=$STAGING_BaseUrl
-            - ApiKeyGoogleCalendar=$STAGING_ApiKeyGoogleCalendar
-            - RegionalCalendarId=$STAGING_RegionalCalendarId
-            - ClAuctionApi__Endpoint=$STAGING_ClAuctionApi__Endpoint
-            - ClAuctionApi__ApiKey=$STAGING_ClAuctionApi__ApiKey
-            - ClAuctionApi__BearerToken=$STAGING_ClAuctionApi__BearerToken
+            - ASPNETCORE_ENVIRONMENT=${STAGING_ASPNETCORE_ENVIRONMENT}
+            - ConnectionStrings__DbContext=${STAGING_ConnectionStrings__DbContext}
+            - Jwt__Secret=${STAGING_Jwt__Secret}
+            - Jwt__Issuer=${STAGING_Jwt__Issuer}
+            - Jwt__Audience=${STAGING_Jwt__Audience}
+            - Jwt__AccessTokenExpireMinutes=${STAGING_Jwt__AccessTokenExpireMinutes}
+            - Jwt__RefreshTokenExpireDays=${STAGING_Jwt__RefreshTokenExpireDays}
+            - ApiKeyCL=${STAGING_ApiKeyCL}
+            - ExpiryMinutes=${STAGING_ExpiryMinutes}
+            - BaseUrl=${STAGING_BaseUrl}
+            - ApiKeyGoogleCalendar=${STAGING_ApiKeyGoogleCalendar}
+            - RegionalCalendarId=${STAGING_RegionalCalendarId}
+            - ClAuctionApi__Endpoint=${STAGING_ClAuctionApi__Endpoint}
+            - ClAuctionApi__ApiKey=${STAGING_ClAuctionApi__ApiKey}
+            - ClAuctionApi__BearerToken=${STAGING_ClAuctionApi__BearerToken}
         volumes:
          - ./opt/ecocircular/staging_data:/app/data
          - ./var/log/ecocircular/staging:/app/logs

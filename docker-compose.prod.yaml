@@ -7,9 +7,11 @@ services:
         environment:
             - ASPNETCORE_ENVIRONMENT=$ASPNETCORE_ENVIRONMENT
             - ConnectionStrings__DbContext=$ConnectionStrings__DbContext
-            - JwtSettings__Secret=$JwtSettings__Secret
-            - JwtSettings__Issuer=$JwtSettings__Issuer
-            - JwtSettings__Audience=$JwtSettings__Audience
+            - Jwt__Secret=$Jwt__Secret
+            - Jwt__Issuer=$Jwt__Issuer
+            - Jwt__Audience=$Jwt__Audience
+            - Jwt__AccessTokenExpireMinutes=$Jwt__AccessTokenExpireMinutes
+            - Jwt__RefreshTokenExpireDays=$Jwt__RefreshTokenExpireDays
             - ApiKeyCL=$ApiKeyCL
             - ExpiryMinutes=$ExpiryMinutes
             - BaseUrl=$BaseUrl
@@ -20,8 +22,8 @@ services:
             - ClAuctionApi__BearerToken=$ClAuctionApi__BearerToken
 
         volumes:
-         - ./opt/ecocircular/prod_data:/app/data
-         - ./var/log/ecocircular/prod:/app/logs
+            - ./opt/ecocircular/prod_data:/app/data
+            - ./var/log/ecocircular/prod:/app/logs
         networks:
             - qa-network
         deploy:

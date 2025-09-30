@@ -114,10 +114,13 @@ try
 
     builder.Configuration.AddEnvironmentVariables();
 
+    // Variables de configuración
     string? conn = builder.Configuration.GetConnectionString("DbContext");
-    string? issuer = builder.Configuration["JwtSettings:Issuer"];
-    string? audience = builder.Configuration["JwtSettings:Audience"];
-    string? secret = builder.Configuration["JwtSettings:Secret"];
+    string? issuer = builder.Configuration["Jwt:Issuer"];
+    string? audience = builder.Configuration["Jwt:Audience"];
+    string? secret = builder.Configuration["Jwt:Secret"];
+    int accessTokenExpireMinutes = builder.Configuration.GetValue<int>("Jwt:AccessTokenExpireMinutes", 15);
+    int refreshTokenExpireDays = builder.Configuration.GetValue<int>("Jwt:RefreshTokenExpireDays", 7);
     var apiKey = builder.Configuration["ApiKeyCL"];
     var expiryMinutes = builder.Configuration["ExpiryMinutes"];
     var baseUrl = builder.Configuration["BaseUrl"];
@@ -130,10 +133,12 @@ try
     // Logging SEGURO de configuración
     Log.Information("🔧 Configuración cargada:");
     Log.Debug("ConnectionString: {Conn}", MaskPassword(builder.Configuration.GetConnectionString("DbContext")));
-    Log.Debug("Jwt Issuer: {Issuer}", builder.Configuration["JwtSettings:Issuer"]);
-    Log.Debug("Jwt Audience: {Audience}", builder.Configuration["JwtSettings:Audience"]);
-    Log.Debug("Jwt Secret: {Secret}", MaskSecret(builder.Configuration["JwtSettings:Secret"]));
-    Log.Debug("API Key: {ApiKey}", MaskApiKey(builder.Configuration["ApiKeyCL"]));
+    Log.Debug("Jwt Issuer: {Issuer}", issuer);
+    Log.Debug("Jwt Audience: {Audience}", audience);
+    Log.Debug("Jwt Secret: {Secret}", MaskSecret(secret));
+    Log.Debug("Access Token Expire Minutes: {Minutes}", accessTokenExpireMinutes);
+    Log.Debug("Refresh Token Expire Days: {Days}", refreshTokenExpireDays);
+    Log.Debug("API Key: {ApiKey}", MaskApiKey(apiKey));
     Log.Debug("Expiry Minutes: {ExpiryMinutes}", expiryMinutes);
     Log.Debug("Base URL: {BaseUrl}", baseUrl);
     Log.Debug("Google Calendar API Key: {GoogleKey}", MaskApiKey(apiKeyGoogleCalendar));
@@ -142,26 +147,34 @@ try
     Log.Debug("CL Auction API Key: {ClApiKey}", MaskApiKey(ClApiKey));
     Log.Debug("CL Bearer Token: {BearerToken}", MaskBearerToken(ClBearerToken));
 
-
-
-
     // Validación de variables requeridas
     var requiredSettings = new Dictionary<string, string>
     {
         ["DbContext"] = builder.Configuration.GetConnectionString("DbContext"),
-        ["JwtSettings:Issuer"] = builder.Configuration["JwtSettings:Issuer"],
-        ["JwtSettings:Audience"] = builder.Configuration["JwtSettings:Audience"],
-        ["JwtSettings:Secret"] = builder.Configuration["JwtSettings:Secret"],
-        ["ApiKeyCL"] = builder.Configuration["ApiKeyCL"],
-        ["ExpiryMinutes"] = builder.Configuration["ExpiryMinutes"],
-        ["BaseUrl"] = builder.Configuration["BaseUrl"],
-        ["ApiKeyGoogleCalendar"] = builder.Configuration["ApiKeyGoogleCalendar"],
-        ["RegionalCalendarId"] = builder.Configuration["RegionalCalendarId"],
-        ["ClAuctionApi:Endpoint"] = builder.Configuration["ClAuctionApi:Endpoint"],
-        ["ClAuctionApi:ApiKey"] = builder.Configuration["ClAuctionApi:ApiKey"],
-        ["ClAuctionApi:BearerToken"] = builder.Configuration["ClAuctionApi:BearerToken"]
+        ["Jwt:Issuer"] = issuer,
+        ["Jwt:Audience"] = audience,
+        ["Jwt:Secret"] = secret,
+        ["ApiKeyCL"] = apiKey,
+        ["ExpiryMinutes"] = expiryMinutes,
+        ["BaseUrl"] = baseUrl,
+        ["ApiKeyGoogleCalendar"] = apiKeyGoogleCalendar,
+        ["RegionalCalendarId"] = regionalCalendarId,
+        ["ClAuctionApi:Endpoint"] = Endpoint,
+        ["ClAuctionApi:ApiKey"] = ClApiKey,
+        ["ClAuctionApi:BearerToken"] = ClBearerToken
     };
 
+    // Validar que no haya valores null o vacíos
+    var missingSettings = requiredSettings.Where(s => string.IsNullOrEmpty(s.Value)).Select(s => s.Key).ToList();
+
+    if (missingSettings.Any())
+    {
+        var errorMsg = $"❌ Configuraciones faltantes: {string.Join(", ", missingSettings)}";
+        Log.Fatal(errorMsg);
+        throw new InvalidOperationException(errorMsg);
+    }
+
+    Log.Information("✅ Todas las configuraciones requeridas están presentes");
     var missingVars = requiredSettings
         .Where(x => string.IsNullOrWhiteSpace(x.Value))
         .Select(x => x.Key)
@@ -273,38 +286,35 @@ try
     });
 
 
-    //Autenticación
-    builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
-    builder.Services.AddSingleton(sp =>
-        sp.GetRequiredService<IOptions<JwtSettings>>().Value);
-    builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
     builder.Services.AddScoped<ValidateModelAttribute>();
 
-
-    //Configuración de autorización por defecto
-    builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
+    // Custom Services
+    builder.Services.AddHttpClient(); // Para llamadas a Clave Única
 
 
-
+    builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
+        var jwtSecret = builder.Configuration["Jwt:Secret"];
+
+        if (string.IsNullOrEmpty(jwtSecret))
+        {
+            throw new InvalidOperationException("❌ Jwt:Secret no configurado en appsettings.json");
+        }
+
         options.TokenValidationParameters = new TokenValidationParameters
         {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration["JwtSettings:Issuer"],
-            ValidAudience = builder.Configuration["JwtSettings:Audience"],
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["JwtSettings:Secret"]))
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
+            ValidateIssuer = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidateAudience = true,
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
         };
     });
-
+    builder.Services.AddAuthorization();
 
 
     builder.Services.AddHttpClient<IClAuctionApiService, ClAuctionApiService>(client =>
@@ -328,6 +338,11 @@ try
 
         // NO establecer BaseAddress - usarás URL absoluta en el servicio
     });
+    // Custom Services
+
+    // ✅ AGREGAR ESTO:
+    builder.Services.AddScoped<IAuthClaveUnicaService, AuthClaveUnicaService>();
+    builder.Services.AddHttpClient<IAuthClaveUnicaService, AuthClaveUnicaService>();
 
 
 
