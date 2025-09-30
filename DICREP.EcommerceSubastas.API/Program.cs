@@ -42,7 +42,7 @@ builder.Configuration.Sources.Clear();
 .Enrich.WithEnvironmentName()
 .Enrich.WithAssemblyName()
 .Enrich.WithMemoryUsage()
- */
+*/
 
 
 /*
@@ -129,6 +129,13 @@ try
     var Endpoint = builder.Configuration["ClAuctionApi:Endpoint"];
     var ClApiKey = builder.Configuration["ClAuctionApi:ApiKey"];
     var ClBearerToken = builder.Configuration["ClAuctionApi:BearerToken"];
+    var ClientId = builder.Configuration["ClaveUnica:ClientId"];
+    var ClientSecret = builder.Configuration["ClaveUnica:ClientSecret"];
+    var RedirectUri = builder.Configuration["ClaveUnica:RedirectUri"];
+    var AuthorizationEndpoint = builder.Configuration["ClaveUnica:AuthorizationEndpoint"];
+    var TokenEndpoint = builder.Configuration["ClaveUnica:TokenEndpoint"];
+    var UserInfoEndpoint = builder.Configuration["ClaveUnica:UserInfoEndpoint"];
+    var AllowAutoUserCreation = builder.Configuration["ClaveUnica:AllowAutoUserCreation"];
 
     // Logging SEGURO de configuración
     Log.Information("🔧 Configuración cargada:");
@@ -146,6 +153,15 @@ try
     Log.Debug("CL Auction Endpoint: {Endpoint}", Endpoint);
     Log.Debug("CL Auction API Key: {ClApiKey}", MaskApiKey(ClApiKey));
     Log.Debug("CL Bearer Token: {BearerToken}", MaskBearerToken(ClBearerToken));
+    Log.Debug("Jwt Issuer: {ClientId}", ClientId);
+    Log.Debug("Jwt Issuer: {ClientSecret}", ClientSecret);
+    Log.Debug("Jwt Issuer: {RedirectUri}", RedirectUri);
+    Log.Debug("Jwt Issuer: {AuthorizationEndpoint}", AuthorizationEndpoint);
+    Log.Debug("Jwt Issuer: {TokenEndpoint}", TokenEndpoint);
+    Log.Debug("Jwt Issuer: {UserInfoEndpoint}", UserInfoEndpoint);
+    Log.Debug("Jwt Issuer: {AllowAutoUserCreation}", AllowAutoUserCreation);
+
+
 
     // Validación de variables requeridas
     var requiredSettings = new Dictionary<string, string>
@@ -161,7 +177,15 @@ try
         ["RegionalCalendarId"] = regionalCalendarId,
         ["ClAuctionApi:Endpoint"] = Endpoint,
         ["ClAuctionApi:ApiKey"] = ClApiKey,
-        ["ClAuctionApi:BearerToken"] = ClBearerToken
+        ["ClAuctionApi:BearerToken"] = ClBearerToken,
+        ["ClaveUnica:ClientId"] = ClientId,
+        ["ClaveUnica:ClientSecret"] = ClientSecret,
+        ["ClaveUnica:RedirectUri"] = RedirectUri,
+        ["ClaveUnica:AuthorizationEndpoint"] = AuthorizationEndpoint,
+        ["ClaveUnica:TokenEndpoint"] = TokenEndpoint,
+        ["ClaveUnica:UserInfoEndpoint"] = UserInfoEndpoint,
+        ["ClaveUnica:AllowAutoUserCreation"] = AllowAutoUserCreation,
+
     };
 
     // Validar que no haya valores null o vacíos

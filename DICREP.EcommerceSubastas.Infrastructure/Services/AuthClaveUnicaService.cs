@@ -38,50 +38,125 @@ namespace DICREP.EcommerceSubastas.Infrastructure.Services
             _logger = Log.ForContext<AuthClaveUnicaService>();
         }
 
+
+
+
+
         public async Task<ClaveUnicaTokenResponse?> ExchangeCodeForTokenAsync(string code, string state)
         {
             try
             {
-                var clientId = _configuration["ClaveUnica:ClientId"];
-                var clientSecret = _configuration["ClaveUnica:ClientSecret"];
-                var redirectUri = _configuration["ClaveUnica:RedirectUri"];
+                // Limpiar valores
+                code = code?.Trim();
+                state = state?.Trim();
+
+                var clientId = _configuration["ClaveUnica:ClientId"]?.Trim();
+                var clientSecret = _configuration["ClaveUnica:ClientSecret"]?.Trim();
+                var redirectUri = _configuration["ClaveUnica:RedirectUri"]?.Trim();
+
                 var tokenEndpoint = "https://accounts.claveunica.gob.cl/openid/token";
 
+                _logger.Information("==========================================");
+                _logger.Information("=== INTERCAMBIANDO CÓDIGO POR TOKEN ===");
+                _logger.Information("==========================================");
+                _logger.Information("TokenEndpoint: {Endpoint}", tokenEndpoint);
+                _logger.Information("ClientId: {ClientId}", clientId);
+                _logger.Information("ClientSecret: {Secret}", string.IsNullOrEmpty(clientSecret) ? "❌ VACÍO" : $"✅ Presente ({clientSecret.Length} chars)");
+                _logger.Information("RedirectUri: {RedirectUri}", redirectUri);
+                _logger.Information("Code: {Code}", code?.Substring(0, Math.Min(30, code?.Length ?? 0)) + "...");
+                _logger.Information("State: {State}", state?.Substring(0, Math.Min(30, state?.Length ?? 0)) + "...");
+                _logger.Information("==========================================");
 
-
-                var requestData = new Dictionary<string, string>
+                // Validar que todos los parámetros estén presentes
+                if (string.IsNullOrEmpty(clientId))
                 {
-                    {"grant_type", "authorization_code"},
-                    {"client_id", clientId},
-                    {"client_secret", clientSecret},
-                    {"code", code},
-                    {"redirect_uri", redirectUri}
-                };
-
-                var requestContent = new FormUrlEncodedContent(requestData);
-                _logger.Information("Intercambiando código por token con Clave Única");
-                var response = await _httpClient.PostAsync(tokenEndpoint, requestContent);
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    var errorContent = await response.Content.ReadAsStringAsync();
-                    _logger.Error("Error al intercambiar código: {StatusCode} - {Content}",
-                        response.StatusCode, errorContent);
+                    _logger.Error("❌ ClientId está vacío o no configurado");
                     return null;
                 }
 
-                var jsonResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<ClaveUnicaTokenResponse>(jsonResponse, new JsonSerializerOptions
+                if (string.IsNullOrEmpty(clientSecret))
+                {
+                    _logger.Error("❌ ClientSecret está vacío o no configurado");
+                    return null;
+                }
+
+                if (string.IsNullOrEmpty(redirectUri))
+                {
+                    _logger.Error("❌ RedirectUri está vacío o no configurado");
+                    return null;
+                }
+
+                if (string.IsNullOrEmpty(code))
+                {
+                    _logger.Error("❌ Code está vacío");
+                    return null;
+                }
+
+                var requestData = new Dictionary<string, string>
+        {
+            {"grant_type", "authorization_code"},
+            {"client_id", clientId},
+            {"client_secret", clientSecret},
+            {"code", code},
+            {"redirect_uri", redirectUri}
+        };
+
+                // Log del contenido exacto que se enviará
+                _logger.Information("=== REQUEST DATA ===");
+                foreach (var kvp in requestData)
+                {
+                    if (kvp.Key == "client_secret")
+                    {
+                        _logger.Information("{Key}: [OCULTO] ({Length} chars)", kvp.Key, kvp.Value?.Length ?? 0);
+                    }
+                    else if (kvp.Key == "code")
+                    {
+                        _logger.Information("{Key}: {Value}... ({Length} chars)", kvp.Key,
+                            kvp.Value?.Substring(0, Math.Min(30, kvp.Value?.Length ?? 0)),
+                            kvp.Value?.Length ?? 0);
+                    }
+                    else
+                    {
+                        _logger.Information("{Key}: {Value}", kvp.Key, kvp.Value);
+                    }
+                }
+
+                var requestContent = new FormUrlEncodedContent(requestData);
+
+                // Ver el body exacto
+                var bodyContent = await requestContent.ReadAsStringAsync();
+                _logger.Information("Body (form-encoded): {Body}", bodyContent.Substring(0, Math.Min(200, bodyContent.Length)));
+
+                _logger.Information("=== ENVIANDO REQUEST A CLAVE ÚNICA ===");
+                var response = await _httpClient.PostAsync(tokenEndpoint, requestContent);
+                var responseContent = await response.Content.ReadAsStringAsync();
+
+                _logger.Information("=== RESPUESTA DE CLAVE ÚNICA ===");
+                _logger.Information("Status Code: {StatusCode}", response.StatusCode);
+                _logger.Information("Response: {Response}", responseContent);
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.Error("❌ Error al intercambiar código: {StatusCode} - {Content}",
+                        response.StatusCode, responseContent);
+                    return null;
+                }
+
+                _logger.Information("✅ Token obtenido exitosamente");
+
+                return JsonSerializer.Deserialize<ClaveUnicaTokenResponse>(responseContent, new JsonSerializerOptions
                 {
                     PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower
                 });
             }
             catch (Exception ex)
             {
-                _logger.Error(ex, "Error inesperado al intercambiar código por token");
+                _logger.Error(ex, "❌ Error inesperado al intercambiar código por token");
                 return null;
             }
         }
+
+
 
         public async Task<ClaveUnicaUserInfo?> GetUserInfoFromClaveUnicaAsync(string accessToken)
         {
